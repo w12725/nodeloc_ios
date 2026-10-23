@@ -1,0 +1,62 @@
+name: Build unsigned IPA
+
+# Produces an unsigned .ipa that can be self-signed on-device or on a PC
+# (Sideloadly / AltStore / TrollStore). No Apple Developer account needed:
+# code signing is switched off for the whole build.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks | sed -n '1,20p'
+
+      - name: Build unsigned archive
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project nodeloc.xcodeproj \
+            -scheme nodeloc \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/nodeloc.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            archive
+
+      - name: Package Payload into .ipa
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/nodeloc.xcarchive/Products/Applications/nodeloc.app"
+          test -d "$APP"
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
+          cd "$RUNNER_TEMP/ipa"
+          zip -qry nodeloc-unsigned.ipa Payload
+          unzip -l nodeloc-unsigned.ipa | tail -5
+          ls -lh nodeloc-unsigned.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodeloc-unsigned-ipa
+          path: ${{ runner.temp }}/ipa/nodeloc-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14

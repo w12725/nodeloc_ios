@@ -417,6 +417,11 @@ struct SidebarOverlay: View {
                 app.overlay = nil
             case .hot:
                 openSitePath("/top")
+            case .newTopics:
+                // New topics live on the site, not in the app: the feed is
+                // per-account and the web page already does the filtering, so
+                // this opens `/new?subset=topics` in the in-app browser.
+                openSitePath("/new?subset=topics")
             case .browseNodes:
                 app.overlay = .browseNodes
             case .createNode:
@@ -450,7 +455,7 @@ struct SidebarOverlay: View {
         [
             SidebarMenuItem(title: AppString("首页"), subtitle: nil, icon: "house.fill", isPrimary: app.tab == .home, action: .home),
             SidebarMenuItem(title: AppString("热门"), subtitle: nil, icon: "flame.fill", action: .hot),
-            SidebarMenuItem(title: AppString("浏览节点"), subtitle: nil, icon: "square.grid.2x2.fill", action: .browseNodes),
+            SidebarMenuItem(title: AppString("新话题"), subtitle: nil, icon: "sparkles", action: .newTopics),
             SidebarMenuItem(title: AppString("创建节点"), subtitle: nil, icon: "plus.circle.fill", isPrimary: store.canCreateNode, action: .createNode)
         ]
     }
@@ -497,6 +502,8 @@ private struct SidebarMenuItem: Identifiable {
 private enum SidebarAction {
     case home
     case hot
+    /// The site's new-topics feed, opened in the in-app browser.
+    case newTopics
     case browseNodes
     case createNode
     case open(String)

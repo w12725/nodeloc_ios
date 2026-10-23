@@ -7723,6 +7723,16 @@
         }
       }
     },
+    "新话题" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New topics"
+          }
+        }
+      }
+    },
     "浏览话题" : {
       "localizations" : {
         "en" : {

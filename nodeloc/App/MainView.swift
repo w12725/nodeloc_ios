@@ -87,13 +87,17 @@ struct MainView: View {
                         Text("Home")
                     }
 
-                    SwiftUI.Tab(value: Tab.nodes) {
-                        tabContent(for: .nodes) {
-                            BrowseNodesOverlay(showsCloseButton: false)
+                    SwiftUI.Tab(value: Tab.newTopics) {
+                        tabContent(for: .newTopics) {
+                            // The same feed the home tab draws, pinned to the
+                            // signed-in `/new` list instead of the reader's
+                            // default. Reusing HomeView is the point: one list
+                            // implementation, two entry points.
+                            HomeView(postTransitionNamespace: postTransitionNamespace, fixedFeed: .newTopics)
                         }
                     } label: {
-                        Image(systemName: "square.grid.2x2")
-                        Text("节点")
+                        Image(systemName: "sparkles")
+                        Text("新话题")
                     }
 
                     SwiftUI.Tab(value: Tab.chat) {
@@ -594,7 +598,7 @@ private func mainPreview(tab: Tab = .home, overlay: Overlay? = nil) -> some View
 }
 
 #Preview("Home") { mainPreview(tab: .home) }
-#Preview("Nodes") { mainPreview(tab: .nodes) }
+#Preview("New topics") { mainPreview(tab: .newTopics) }
 #Preview("Search") { mainPreview(tab: .search) }
 #Preview("Chat") { mainPreview(tab: .chat) }
 #Preview("Profile") { mainPreview(tab: .profile) }

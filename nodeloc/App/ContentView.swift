@@ -180,7 +180,7 @@ struct ContentView: View {
             app.isGuest = true
             app.onboardingDone = true
             switch ScreenshotMode.tab {
-            case "nodes": app.tab = .nodes
+            case "newtopics": app.tab = .newTopics
             case "chat": app.tab = .chat
             case "profile": app.tab = .profile
             case "search": app.tab = .search

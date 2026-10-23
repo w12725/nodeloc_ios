@@ -53,8 +53,8 @@ final class FeedStore {
     }
 
     /// `feed` is passed in rather than read from the preference store: the
-    /// drawer's 新话题 shortcut shows a list the reader hasn't chosen as their
-    /// default, through `AppState.homeFeedOverride`.
+    /// 新话题 tab pins `/new` while the home tab follows the reader's default,
+    /// and both share this store.
     func load(_ feed: HomeFeed) async {
         isLoading = true
         errorText = nil

@@ -10059,6 +10059,16 @@
         }
       }
     },
+    "登录后查看新话题" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to see new topics"
+          }
+        }
+      }
+    },
     "返回登录" : {
       "localizations" : {
         "en" : {

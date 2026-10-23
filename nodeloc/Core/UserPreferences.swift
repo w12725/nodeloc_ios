@@ -281,8 +281,7 @@ enum HomepageChoice: Int, CaseIterable, Identifiable {
 ///
 /// `newTopics` is the one exception: it is the reader's own `/new` list, so it
 /// needs an account and is deliberately kept out of `allCases` — the settings
-/// picker only offers what a guest can use. The drawer's 新话题 shortcut is its
-/// entry point, through `AppState.homeFeedOverride`.
+/// picker only offers what a guest can use. The 新话题 tab is its entry point.
 enum HomeFeed: Int, CaseIterable, Identifiable {
     case best = 0
     case latest = 1

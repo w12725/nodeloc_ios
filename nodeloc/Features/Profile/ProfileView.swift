@@ -716,7 +716,9 @@ struct ProfileView: View {
                     ForEach(store.recentNodes) { node in
                         Button {
                             activeSheet = nil
-                            app.tab = .nodes
+                            // There is no node tab any more: open the node the
+                            // reader picked instead of a directory of all of them.
+                            app.openNode(slug: node.slug)
                         } label: {
                             ProfileNodeRow(node: node)
                         }

@@ -546,7 +546,7 @@ struct ProfileRole: Identifiable, Hashable {
 
 // MARK: - Navigation
 
-enum Tab: Hashable { case home, nodes, search, chat, profile }
+enum Tab: Hashable { case home, newTopics, search, chat, profile }
 enum Overlay: Identifiable { case sidebar, post, compose, search, browseNodes, createNode, notifications, settings, appsDirectory, appDetail, auth
     var id: Int { hashValue }
 }
@@ -568,10 +568,6 @@ final class AppState {
     // Main
     var tab: Tab = .home
     var overlay: Overlay?
-    /// A feed the drawer asked the home tab to show *for now* — the 新话题
-    /// shortcut points at the signed-in `/new` list without making it the
-    /// reader's saved default. Cleared by 首页 and by any change in Settings.
-    var homeFeedOverride: HomeFeed?
     /// Blank placeholder until a real post is opened — never sample content.
     var selectedPost = Post(
         id: 0, node: "", avatarLetter: "N", variant: 0, time: "",

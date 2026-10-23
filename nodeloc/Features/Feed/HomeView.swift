@@ -12,6 +12,10 @@ struct HomeView: View {
     @Environment(\.sidebarIsPinned) private var sidebarIsPinned
     @Environment(\.usesTopTabBar) private var usesTopTabBar
     let postTransitionNamespace: Namespace.ID
+    /// A list this view always shows, whatever the reader's default is. The
+    /// 新话题 tab pins `/new` here; the home tab leaves it nil and follows the
+    /// preference instead.
+    private let fixedFeed: HomeFeed?
     @State private var feed = FeedStore()
     @State private var lastOffset: CGFloat = 0
     @State private var headerHiddenAmount: CGFloat = 0
@@ -24,8 +28,9 @@ struct HomeView: View {
     /// Watched for the default-homepage choice.
     private var preferences = UserPreferencesStore.shared
 
-    init(postTransitionNamespace: Namespace.ID) {
+    init(postTransitionNamespace: Namespace.ID, fixedFeed: HomeFeed? = nil) {
         self.postTransitionNamespace = postTransitionNamespace
+        self.fixedFeed = fixedFeed
     }
 
     var body: some View {
@@ -51,9 +56,9 @@ struct HomeView: View {
                 LazyVStack(spacing: 0) {
                     Color.clear.frame(height: usesTopTabBar ? 0 : headerHeight)
 
-                    feedOverrideNotice
-
-                    if showsLoader {
+                    if needsSignIn {
+                        signInPrompt
+                    } else if showsLoader {
                         feedSkeleton
                     } else if displayPosts.isEmpty {
                         // Load failed or nothing came back: say so instead of
@@ -107,19 +112,20 @@ struct HomeView: View {
                 .padding(.bottom, 100)
             }
             .scrollIndicators(.hidden)
-            .refreshable { await feed.load(effectiveFeed) }
-            .task { await feed.loadIfNeeded(effectiveFeed) }
+            .refreshable {
+                guard !needsSignIn else { return }
+                await feed.load(effectiveFeed)
+            }
+            .task(id: needsSignIn) {
+                guard !needsSignIn else { return }
+                await feed.loadIfNeeded(effectiveFeed)
+            }
             // Settings is an overlay over this view, so `task` won't run again
             // when it closes. Reload the moment the choice changes instead.
+            // The 新话题 tab has its list fixed and does not follow this.
             .onChange(of: preferences.homeFeed) { _, _ in
-                // Picking a feed in Settings is an explicit "show me this",
-                // which ends the 新话题 shortcut's temporary override.
-                app.homeFeedOverride = nil
+                guard fixedFeed == nil else { return }
                 Task { await feed.load(effectiveFeed) }
-            }
-            // The drawer's 新话题 shortcut (and 首页, which clears it).
-            .onChange(of: app.homeFeedOverride) { _, _ in
-                Task { await feed.loadIfNeeded(effectiveFeed) }
             }
             .onScrollGeometryChange(for: CGFloat.self) { geo in
                 geo.contentOffset.y
@@ -160,45 +166,48 @@ struct HomeView: View {
     private let headerHeight: CGFloat = 56
     private let logoHeight: CGFloat = 30
 
-    /// What the list shows: the reader's default feed, unless the drawer's
-    /// 新话题 shortcut has temporarily overridden it (see `AppState`).
+    /// What the list shows: the tab's fixed feed when it has one (新话题),
+    /// otherwise the reader's default from Settings.
     private var effectiveFeed: HomeFeed {
-        app.homeFeedOverride ?? preferences.homeFeed
+        fixedFeed ?? preferences.homeFeed
     }
     /// Release speed, in points per second, that counts as a flick rather than
     /// a drag. Empirical: a deliberate flick leaves the finger at well over a
     /// thousand, while easing the list back down sits near zero.
     private let flickRevealSpeed: CGFloat = 500
 
-    /// The drawer's 新话题 shortcut borrows the home tab for a list that isn't
-    /// the reader's saved default. Say which list this is and offer the way
-    /// back, instead of leaving 首页 looking inexplicably different.
+    /// `/new` is per-account: without a session the list answers 403, so the
+    /// tab asks for a sign-in instead of printing the server's refusal.
     @ViewBuilder
-    private var feedOverrideNotice: some View {
-        if let activeFeed = app.homeFeedOverride {
-            HStack(spacing: 7) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 12, weight: .semibold))
-                Text(activeFeed.label)
-                    .font(Theme.body(13, weight: .semibold))
-                Spacer(minLength: 10)
-                Button {
-                    app.homeFeedOverride = nil
-                } label: {
-                    Text("返回首页")
-                        .font(Theme.body(12, weight: .semibold))
-                        .foregroundStyle(Theme.accent)
-                }
-                .buttonStyle(.plain)
+    private var signInPrompt: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(Theme.muted(0.35))
+            Text("登录后查看新话题")
+                .font(Theme.body(15, weight: .semibold))
+                .foregroundStyle(Theme.muted(0.7))
+            Button {
+                presentAuth(app)
+            } label: {
+                Text("登录")
+                    .font(Theme.body(14, weight: .semibold))
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 10)
             }
-            .foregroundStyle(Theme.text)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
-            .background(Theme.surface, in: Capsule())
-            .padding(.horizontal, 14)
-            .padding(.top, 10)
-            .padding(.bottom, 4)
+            .buttonStyle(.borderedProminent)
+            .tint(Theme.accent)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 130)
+        .padding(.horizontal, 32)
+    }
+
+    /// `/new` needs an account; every other feed reads fine signed out. Checked
+    /// here rather than letting the request fail so the tab can ask for a
+    /// sign-in instead of showing the server's 403 text.
+    private var needsSignIn: Bool {
+        fixedFeed == .newTopics && !(app.authed && !app.isGuest)
     }
 
     /// First load with nothing to show yet — the skeleton stands in for it.

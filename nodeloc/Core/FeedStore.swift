@@ -6,9 +6,11 @@
 //  card model. A failed load keeps the list empty and sets `errorText`;
 //  HomeView shows the friendly retry state — never sample data.
 //
-//  Which list is loaded comes from `UserPreferencesStore.homeFeed` (default
-//  `best`, the community feed) and is read at the start of every `load()`, so
-//  changing the preference and returning to the tab shows the new feed.
+//  Which list is loaded is passed into `load(_:)` by the caller: normally
+//  `UserPreferencesStore.homeFeed` (default `best`, the community feed), but
+//  the drawer's 新话题 shortcut overrides it with the signed-in `/new` list.
+//  Read at the start of every load, so changing the choice and returning to
+//  the tab shows the new feed.
 //
 
 import Foundation
@@ -42,20 +44,23 @@ final class FeedStore {
     /// Accumulated across pages so later pages' authors still resolve.
     private var usersByID: [Int: DiscourseUser] = [:]
 
-    func loadIfNeeded() async {
-        // A stale feed counts as needing a load: the preference can change
-        // while this tab sits in the background with its posts intact.
-        if posts.isEmpty || feed != UserPreferencesStore.shared.homeFeed {
-            await load()
+    func loadIfNeeded(_ feed: HomeFeed) async {
+        // A stale feed counts as needing a load: the choice can change while
+        // this tab sits in the background with its posts intact.
+        if posts.isEmpty || self.feed != feed {
+            await load(feed)
         }
     }
 
-    func load() async {
+    /// `feed` is passed in rather than read from the preference store: the
+    /// drawer's 新话题 shortcut shows a list the reader hasn't chosen as their
+    /// default, through `AppState.homeFeedOverride`.
+    func load(_ feed: HomeFeed) async {
         isLoading = true
         errorText = nil
         page = 0
         seed = nil
-        feed = UserPreferencesStore.shared.homeFeed
+        self.feed = feed
         do {
             async let listCall = client.topicList(feed: feed)
             async let siteCall: SiteResponse? = await SiteResources.shared.siteResponse()

@@ -413,15 +413,24 @@ struct SidebarOverlay: View {
         withAnimation(.quick) {
             switch action {
             case .home:
+                app.homeFeedOverride = nil
                 app.tab = .home
                 app.overlay = nil
             case .hot:
                 openSitePath("/top")
             case .newTopics:
-                // New topics live on the site, not in the app: the feed is
-                // per-account and the web page already does the filtering, so
-                // this opens `/new?subset=topics` in the in-app browser.
-                openSitePath("/new?subset=topics")
+                // `/new` is the reader's own list: it needs an account, and the
+                // in-app browser has no forum session to answer it with. The
+                // home feed renders it natively like any other list — see
+                // `HomeFeed.newTopics` — and the override keeps that from
+                // replacing the reader's saved default.
+                if isSignedIn {
+                    app.homeFeedOverride = .newTopics
+                    app.tab = .home
+                    app.overlay = nil
+                } else {
+                    presentAuth(app)
+                }
             case .browseNodes:
                 app.overlay = .browseNodes
             case .createNode:
@@ -453,9 +462,9 @@ struct SidebarOverlay: View {
 
     private var shortcutItems: [SidebarMenuItem] {
         [
-            SidebarMenuItem(title: AppString("首页"), subtitle: nil, icon: "house.fill", isPrimary: app.tab == .home, action: .home),
+            SidebarMenuItem(title: AppString("首页"), subtitle: nil, icon: "house.fill", isPrimary: app.tab == .home && app.homeFeedOverride == nil, action: .home),
             SidebarMenuItem(title: AppString("热门"), subtitle: nil, icon: "flame.fill", action: .hot),
-            SidebarMenuItem(title: AppString("新话题"), subtitle: nil, icon: "sparkles", action: .newTopics),
+            SidebarMenuItem(title: AppString("新话题"), subtitle: nil, icon: "sparkles", isPrimary: app.tab == .home && app.homeFeedOverride == .newTopics, action: .newTopics),
             SidebarMenuItem(title: AppString("创建节点"), subtitle: nil, icon: "plus.circle.fill", isPrimary: store.canCreateNode, action: .createNode)
         ]
     }

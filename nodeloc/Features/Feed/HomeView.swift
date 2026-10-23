@@ -51,6 +51,8 @@ struct HomeView: View {
                 LazyVStack(spacing: 0) {
                     Color.clear.frame(height: usesTopTabBar ? 0 : headerHeight)
 
+                    feedOverrideNotice
+
                     if showsLoader {
                         feedSkeleton
                     } else if feed.visiblePosts.isEmpty {
@@ -105,12 +107,19 @@ struct HomeView: View {
                 .padding(.bottom, 100)
             }
             .scrollIndicators(.hidden)
-            .refreshable { await feed.load() }
-            .task { await feed.loadIfNeeded() }
+            .refreshable { await feed.load(effectiveFeed) }
+            .task { await feed.loadIfNeeded(effectiveFeed) }
             // Settings is an overlay over this view, so `task` won't run again
             // when it closes. Reload the moment the choice changes instead.
             .onChange(of: preferences.homeFeed) { _, _ in
-                Task { await feed.load() }
+                // Picking a feed in Settings is an explicit "show me this",
+                // which ends the 新话题 shortcut's temporary override.
+                app.homeFeedOverride = nil
+                Task { await feed.load(effectiveFeed) }
+            }
+            // The drawer's 新话题 shortcut (and 首页, which clears it).
+            .onChange(of: app.homeFeedOverride) { _, _ in
+                Task { await feed.loadIfNeeded(effectiveFeed) }
             }
             .onScrollGeometryChange(for: CGFloat.self) { geo in
                 geo.contentOffset.y
@@ -150,10 +159,47 @@ struct HomeView: View {
 
     private let headerHeight: CGFloat = 56
     private let logoHeight: CGFloat = 30
+
+    /// What the list shows: the reader's default feed, unless the drawer's
+    /// 新话题 shortcut has temporarily overridden it (see `AppState`).
+    private var effectiveFeed: HomeFeed {
+        app.homeFeedOverride ?? preferences.homeFeed
+    }
     /// Release speed, in points per second, that counts as a flick rather than
     /// a drag. Empirical: a deliberate flick leaves the finger at well over a
     /// thousand, while easing the list back down sits near zero.
     private let flickRevealSpeed: CGFloat = 500
+
+    /// The drawer's 新话题 shortcut borrows the home tab for a list that isn't
+    /// the reader's saved default. Say which list this is and offer the way
+    /// back, instead of leaving 首页 looking inexplicably different.
+    @ViewBuilder
+    private var feedOverrideNotice: some View {
+        if let activeFeed = app.homeFeedOverride {
+            HStack(spacing: 7) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .semibold))
+                Text(activeFeed.label)
+                    .font(Theme.body(13, weight: .semibold))
+                Spacer(minLength: 10)
+                Button {
+                    app.homeFeedOverride = nil
+                } label: {
+                    Text("返回首页")
+                        .font(Theme.body(12, weight: .semibold))
+                        .foregroundStyle(Theme.accent)
+                }
+                .buttonStyle(.plain)
+            }
+            .foregroundStyle(Theme.text)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
+            .background(Theme.surface, in: Capsule())
+            .padding(.horizontal, 14)
+            .padding(.top, 10)
+            .padding(.bottom, 4)
+        }
+    }
 
     /// First load with nothing to show yet — the skeleton stands in for it.
     private var showsLoader: Bool {
@@ -359,7 +405,7 @@ struct HomeView: View {
                 .foregroundStyle(Theme.muted(0.55))
                 .multilineTextAlignment(.center)
             Button("重试") {
-                Task { await feed.load() }
+                Task { await feed.load(effectiveFeed) }
             }
             .buttonStyle(.bordered)
         }

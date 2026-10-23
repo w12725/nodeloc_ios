@@ -278,13 +278,23 @@ enum HomepageChoice: Int, CaseIterable, Identifiable {
 /// The cases are only the lists that both come back shaped like a topic list
 /// and work while signed out. `categories` and `bookmarks` are neither, which
 /// is why the app's list is shorter than the site's.
+///
+/// `newTopics` is the one exception: it is the reader's own `/new` list, so it
+/// needs an account and is deliberately kept out of `allCases` — the settings
+/// picker only offers what a guest can use. The drawer's 新话题 shortcut is its
+/// entry point, through `AppState.homeFeedOverride`.
 enum HomeFeed: Int, CaseIterable, Identifiable {
     case best = 0
     case latest = 1
     case hot = 2
     case top = 3
+    case newTopics = 4
 
     var id: Int { rawValue }
+
+    /// Explicit rather than synthesized, to keep `newTopics` out of the
+    /// settings picker (`PreferencePages` renders `HomeFeed.allCases`).
+    static var allCases: [HomeFeed] { [.best, .latest, .hot, .top] }
 
     var path: String {
         switch self {
@@ -292,7 +302,15 @@ enum HomeFeed: Int, CaseIterable, Identifiable {
         case .latest: return "latest.json"
         case .hot: return "hot.json"
         case .top: return "top.json"
+        case .newTopics: return "new.json"
         }
+    }
+
+    /// Extra query the endpoint needs. `/new` carries the website's own
+    /// `subset=topics` filter so the app's list and `nodeloc.com/new` show the
+    /// same topics rather than drifting apart.
+    var queryItems: [URLQueryItem] {
+        self == .newTopics ? [URLQueryItem(name: "subset", value: "topics")] : []
     }
 
     /// `best` picks a fresh random ordering on every seedless request and
@@ -312,6 +330,7 @@ enum HomeFeed: Int, CaseIterable, Identifiable {
         case .latest: return AppString("最新")
         case .hot: return AppString("热")
         case .top: return AppString("热门")
+        case .newTopics: return AppString("新话题")
         }
     }
 

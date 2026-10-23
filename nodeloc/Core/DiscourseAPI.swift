@@ -360,8 +360,8 @@ struct DiscourseClient {
 
     // MARK: Endpoints
 
-    /// One of the home tab's lists. All four answer with the same `topic_list`
-    /// payload, so only the path differs.
+    /// One of the home tab's lists. All of them answer with the same
+    /// `topic_list` payload, so only the path (and `feed.queryItems`) differs.
     ///
     /// `seed` is for `best`, whose ordering is randomised per request — see
     /// `HomeFeed.isSeeded`. Pass back the seed the first page reported and
@@ -371,7 +371,7 @@ struct DiscourseClient {
         page: Int = 0,
         seed: String? = nil
     ) async throws -> LatestResponse {
-        var query: [URLQueryItem] = []
+        var query: [URLQueryItem] = feed.queryItems
         if page > 0 { query.append(URLQueryItem(name: "page", value: String(page))) }
         if let seed { query.append(URLQueryItem(name: "seed", value: seed)) }
         return try await get(feed.path, query: query)

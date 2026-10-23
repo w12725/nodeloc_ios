@@ -10039,6 +10039,16 @@
         }
       }
     },
+    "返回首页" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back to home"
+          }
+        }
+      }
+    },
     "返回登录" : {
       "localizations" : {
         "en" : {

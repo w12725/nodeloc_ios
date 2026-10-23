@@ -10049,6 +10049,16 @@
         }
       }
     },
+    "新话题都看完了" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You're all caught up"
+          }
+        }
+      }
+    },
     "返回登录" : {
       "localizations" : {
         "en" : {

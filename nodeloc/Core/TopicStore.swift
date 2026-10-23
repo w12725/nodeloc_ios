@@ -101,13 +101,42 @@ final class TopicReadTracker {
     }
 
     /// Sends and clears accumulated timings. A no-op when nothing is pending.
-    func flush() async {
+    ///
+    /// The request goes out in its own task rather than in the caller's:
+    /// `flush()` is called from the topic view's `.task`, which SwiftUI cancels
+    /// the moment the reader leaves, and a URLSession request started inside a
+    /// cancelled task is cancelled with it. The final — and usually only —
+    /// report therefore never left the device, which is why a topic read here
+    /// stayed "new" on the server until it was opened somewhere else.
+    func flush() {
         guard let topicID, !pendingByPost.isEmpty else { return }
-        let timings = pendingByPost
-        let time = pendingTopicTime
+        send(topicID: topicID, timings: pendingByPost, topicTimeMs: pendingTopicTime)
         pendingByPost = [:]
         pendingTopicTime = 0
-        try? await client.sendTopicTimings(topicID: topicID, topicTimeMs: time, timings: timings)
+    }
+
+    /// Reports the topic as opened straight away.
+    ///
+    /// The first post is on screen from the moment a topic appears, and
+    /// Discourse only needs a non-null `last_read_post_number` to drop the
+    /// topic from `/new` (`TopicQuery.new_filter`). Waiting for the one-second
+    /// heartbeat meant a reader who looked and left credited nothing at all.
+    ///
+    /// One millisecond, like the PM inbox: the server only needs *which* posts
+    /// were read, and inventing reading time the reader didn't spend would
+    /// corrupt their statistics.
+    func reportOpened(topicID: Int) {
+        send(topicID: topicID, timings: [1: 1], topicTimeMs: 1)
+    }
+
+    private func send(topicID: Int, timings: [Int: Int], topicTimeMs: Int) {
+        Task { [client] in
+            try? await client.sendTopicTimings(
+                topicID: topicID,
+                topicTimeMs: topicTimeMs,
+                timings: timings
+            )
+        }
     }
 }
 

@@ -161,6 +161,10 @@ struct PostDetailOverlay: View {
             // flush periodically, and flush once more on leaving or switching
             // topics (the task is cancelled then).
             reader.begin(topicID: post.id)
+            // Say "opened" before the first tick: a topic that is looked at and
+            // left inside the heartbeat would otherwise report nothing, and
+            // would stay in /new for good.
+            reader.reportOpened(topicID: post.id)
             var ticks = 0
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
@@ -173,9 +177,9 @@ struct PostDetailOverlay: View {
                 // sharing a rate-limit budget with the requests that actually
                 // draw the screen. The flush below still runs on leaving, so
                 // nothing is lost by batching harder.
-                if ticks % 30 == 0 { await reader.flush() }
+                if ticks % 30 == 0 { reader.flush() }
             }
-            await reader.flush()
+            reader.flush()
         }
         // Keyed on both sources: a topic opened from a link starts with no node
         // at all and only learns it once loaded, so waiting on `post.node`

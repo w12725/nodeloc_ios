@@ -55,12 +55,12 @@ struct HomeView: View {
 
                     if showsLoader {
                         feedSkeleton
-                    } else if feed.visiblePosts.isEmpty {
+                    } else if displayPosts.isEmpty {
                         // Load failed or nothing came back: say so instead of
                         // an unexplained blank screen.
                         feedUnavailable
                     } else {
-                        ForEach(feed.visiblePosts) { post in
+                        ForEach(displayPosts) { post in
                             switch readingMode.mode {
                             case .card:
                                 PostCard(
@@ -204,6 +204,15 @@ struct HomeView: View {
     /// First load with nothing to show yet — the skeleton stands in for it.
     private var showsLoader: Bool {
         feed.visiblePosts.isEmpty && feed.isLoading
+    }
+
+    /// What the list draws. 新话题 drops the topics opened this session:
+    /// Discourse takes a topic out of `/new` as soon as its first post is read,
+    /// so leaving the row on screen would contradict the dot that just cleared.
+    private var displayPosts: [Post] {
+        let posts = feed.visiblePosts
+        guard effectiveFeed == .newTopics else { return posts }
+        return posts.filter { !app.locallyReadTopicIDs.contains($0.id) }
     }
 
     /// 1 when the header is fully shown, 0 once it has scrolled away.
@@ -400,7 +409,7 @@ struct HomeView: View {
             Image(systemName: feed.errorText == nil ? "tray" : "wifi.exclamationmark")
                 .font(.system(size: 30, weight: .semibold))
                 .foregroundStyle(Theme.muted(0.35))
-            Text(feed.errorText ?? AppString("暂时没有内容"))
+            Text(feedUnavailableText)
                 .font(Theme.body(14))
                 .foregroundStyle(Theme.muted(0.55))
                 .multilineTextAlignment(.center)
@@ -412,6 +421,16 @@ struct HomeView: View {
         .frame(maxWidth: .infinity)
         .padding(.top, 130)
         .padding(.horizontal, 32)
+    }
+
+    /// What the empty state says: the failure, the all-caught-up case for
+    /// 新话题, or the plain "nothing here".
+    private var feedUnavailableText: String {
+        if let error = feed.errorText { return error }
+        if effectiveFeed == .newTopics, !feed.visiblePosts.isEmpty {
+            return AppString("新话题都看完了")
+        }
+        return AppString("暂时没有内容")
     }
 
     // MARK: Skeleton
